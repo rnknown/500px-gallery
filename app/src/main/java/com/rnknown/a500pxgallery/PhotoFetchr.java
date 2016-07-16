@@ -54,7 +54,7 @@ public class PhotoFetchr {
         return new String(getUrlBytes(urlSpec));
     }
 
-    public List<GalleryItem> fetchItems() {
+    public List<GalleryItem> fetchItems(Integer pageValue) {
 
         List<GalleryItem> items = new ArrayList<>();
 
@@ -62,7 +62,7 @@ public class PhotoFetchr {
             String url = Uri.parse("https://api.500px.com/v1/photos")
                     .buildUpon()
                     .appendQueryParameter("feature", "fresh")
-                    .appendQueryParameter("page", "1")
+                    .appendQueryParameter("page", Integer.toString(pageValue))
                     .appendQueryParameter("consumer_key", API_KEY)
                     .build().toString();
             String jsonString = getUrlString(url);
