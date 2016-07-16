@@ -24,6 +24,7 @@ import java.util.List;
 public class PhotoGalleryFragment extends Fragment {
 
     private static final String TAG = "PhotoGalleryFragment";
+    private int lastFetchedPage = 1;
 
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
@@ -36,7 +37,7 @@ public class PhotoGalleryFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-        new FetchItemsTask().execute();
+        new FetchItemsTask().execute(lastFetchedPage);
     }
 
     @Override
@@ -44,9 +45,30 @@ public class PhotoGalleryFragment extends Fragment {
                              Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
 
-        mPhotoRecyclerView = (RecyclerView)v.findViewById
+        mPhotoRecyclerView = (RecyclerView) v.findViewById
                 (R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
+        mPhotoRecyclerView.addOnScrollListener (new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                PhotoAdapter adapter = (PhotoAdapter) recyclerView.getAdapter();
+                int lastPosition = adapter.getLastBoundPosition();
+                GridLayoutManager layoutManager = (GridLayoutManager) recyclerView.
+                        getLayoutManager();
+                int loadBufferPosition = 1;
+                if (lastPosition >= adapter.getItemCount() -
+                        layoutManager.getSpanCount() -
+                        loadBufferPosition) {
+                    new FetchItemsTask().execute(lastPosition + 1);
+                }
+            }
+
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+            }
+
+        });
 
         setupAdapter();
 
@@ -59,16 +81,22 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>> {
+    private class FetchItemsTask extends AsyncTask<Integer, Void, List<GalleryItem>> {
         @Override
-        protected List<GalleryItem> doInBackground(Void... params) {
-            return new PhotoFetchr().fetchItems();
+        protected List<GalleryItem> doInBackground(Integer... params) {
+            return new PhotoFetchr().fetchItems(params[0]);
         }
 
         @Override
         protected void onPostExecute(List<GalleryItem> items) {
-            mItems = items;
-            setupAdapter();
+            if (lastFetchedPage > 1) {
+                mItems.addAll(items);
+                mPhotoRecyclerView.getAdapter().notifyDataSetChanged();
+            } else {
+                mItems = items;
+                setupAdapter();
+            }
+            lastFetchedPage++;
         }
     }
 
@@ -89,6 +117,12 @@ public class PhotoGalleryFragment extends Fragment {
 
         private List<GalleryItem> mGalleryItems;
 
+        public int getLastBoundPosition() {
+            return lastBoundPosition;
+        }
+
+        private int lastBoundPosition;
+
         public PhotoAdapter(List<GalleryItem> galleryItems) {
             mGalleryItems = galleryItems;
         }
@@ -103,6 +137,7 @@ public class PhotoGalleryFragment extends Fragment {
         public void onBindViewHolder(PhotoHolder photoHolder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
             photoHolder.bindGalleryItem(galleryItem);
+            lastBoundPosition = position;
         }
 
         @Override
